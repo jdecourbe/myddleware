@@ -53,8 +53,8 @@ class upgradecore  {
 		
 		// New parameters in file parameters.yml.dist
 		$this->newParameters['parameters'] = \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/parameters.yml.dist'));	
-		$this->newParameters['parameters_public'] = \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/public/parameters_public.yml.dist'));	
-		$this->newParameters['parameters_smtp'] = \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/public/parameters_smtp.yml.dist'));	
+		$this->newParameters['parameters_public'] = \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/parameters_public.yml.dist'));	
+		$this->newParameters['parameters_smtp'] = \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/parameters_smtp.yml.dist'));	
 		// Current parameters in file parameters.yml
 		$this->currentParameters['parameters'] =  \Symfony\Component\Yaml\Yaml::parse(file_get_contents($this->container->getParameter('kernel.root_dir').'/config/parameters.yml'));	
 		$this->currentParameters['parameters_public'] = '';
@@ -77,6 +77,11 @@ class upgradecore  {
 		try{
 			// Customize update process
 			$this->beforeUpdate($output);
+			
+			// Clear every Symfony cache
+			$output->writeln('<comment>Clear Symfony cache...</comment>');
+			$this->clearSymfonycache();
+			$output->writeln('<comment>Clear Symfony cache OK</comment>');			
 			
 		 	// Add new parameters
 			$output->writeln('<comment>Update parameters...</comment>');
@@ -103,12 +108,6 @@ class upgradecore  {
 			$this->updateDatabase();
 			$output->writeln('<comment>Update database OK</comment>');
 			
-			// Clear cache
-			$output->writeln('<comment>Clear Symfony cache...</comment>');
-			$this->clearSymfonycache();
-			$output->writeln('<comment>Clear Symfony cache OK</comment>');
-			
-			
 			// Change Myddleware version
 			$output->writeln('<comment>Finish install...</comment>');
 			$this->finishInstall();
@@ -117,7 +116,12 @@ class upgradecore  {
 			$output->writeln('<comment>Update version...</comment>');
 			$this->changeVersion();
 			$output->writeln('<comment>Update version OK</comment>');
-			
+
+			// Clear every Symfony cache
+			$output->writeln('<comment>Clear Symfony cache...</comment>');
+			$this->clearSymfonycache();
+			$output->writeln('<comment>Clear Symfony cache OK</comment>');			
+						
 			// Customize update process
 			$this->afterUpdate($output);
 			
@@ -246,22 +250,11 @@ class upgradecore  {
 	
 	// Clear Symfony cache
 	protected function clearSymfonycache() {
-		// Update schema
-		$application = new Application($this->container->get('kernel'));
-		$application->setAutoExit(false);
-		$arguments = array(
-			'command' => 'cache:clear',
-			'--env' => $this->env,
-		);
-		
-		$input = new ArrayInput($arguments);
-		$output = new BufferedOutput();
-		$application->run($input, $output);
-
-		$content = $output->fetch();
-		// Send output to the logfile if debug mode selected
-		if (!empty($content)) {
-		  echo $content.chr(10);
+		$process = new Process('rm -rf app/cache/*');
+		$process->run();
+		// executes after the command finishes
+		if (!$process->isSuccessful()) {
+			throw new ProcessFailedException($process);
 		}
 	}
 	
